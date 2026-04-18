@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="NIFTY 50 Stock Lab">
+  <defs>
+    <linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#5fa8ff" />
+      <stop offset="100%" stop-color="#45d3c8" />
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="16" fill="#0b0b0b"/>
+  <path d="M12 44h40" stroke="#2c2c2c" stroke-width="4" stroke-linecap="round"/>
+  <path d="M16 38l10-10 8 7 14-16" fill="none" stroke="url(#g)" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="48" cy="19" r="4" fill="#45d3c8"/>
+</svg>

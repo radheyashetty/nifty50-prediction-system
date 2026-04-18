@@ -1,0 +1,378 @@
+<!doctype html>
+<html lang="en" data-bs-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ title }}</title>
+  <meta name="description" content="NIFTY 50 Stock Lab — ML-powered stock prediction with XGBoost, explainability, regime detection, and strategy backtesting.">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&family=Space+Grotesk:wght@500;700;800&display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+  <link rel="stylesheet" href="/static/css/styles.css">
+</head>
+<body>
+  <div class="top-strip"></div>
+
+  <!-- ===== COMPACT HEADER ===== -->
+  <header class="hero">
+    <div class="container">
+      <div class="hero-panel d-flex align-items-center justify-content-between flex-wrap gap-2">
+        <div class="hero-copy">
+          <h1>NIFTY 50 Stock Lab</h1>
+          <p class="lead mb-0">ML-powered prediction · XGBoost + RF ensemble · SHAP explainability</p>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+          <span class="badge text-bg-light p-2">v1.0</span>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="container pb-5 mt-3">
+
+    <!-- ===== CONTROLS ===== -->
+    <section class="controls card shadow-sm border-0 mb-3">
+      <div class="card-body py-3">
+        <div class="row g-2 align-items-end">
+          <div class="col-md-5 col-lg-4">
+            <label for="ticker" class="form-label">Stock</label>
+            <select id="ticker" class="form-select">
+              {% for stock in stocks %}
+              <option value="{{ stock.ticker }}">{{ stock.ticker }} — {{ stock.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-6 col-md-3 col-lg-2">
+            <label for="lookback" class="form-label">Lookback</label>
+            <input id="lookback" type="number" min="90" max="730" value="365" class="form-control">
+          </div>
+          <div class="col-6 col-md-2 col-lg-2">
+            <label for="analysisMode" class="form-label">Mode</label>
+            <select id="analysisMode" class="form-select">
+              <option value="after_training" selected>Train + Predict</option>
+              <option value="cache">Cache</option>
+            </select>
+          </div>
+          <div class="col-md-2 col-lg-2 d-grid">
+            <button id="analyzeBtn" class="btn btn-primary py-2">
+              <span class="spinner-border spinner-border-sm me-1 d-none btn-spinner" role="status"></span>
+              <span class="btn-label">Analyze</span>
+            </button>
+          </div>
+          <div class="col-lg-2 d-grid">
+            <button id="uploadToggleBtn" class="btn btn-outline-primary py-2" type="button" data-bs-toggle="collapse" data-bs-target="#uploadCollapse">
+              ↑ Upload CSV
+            </button>
+          </div>
+        </div>
+
+        <!-- Pipeline Progress Stepper -->
+        <div id="pipelineStepper" class="pipeline-stepper d-none">
+          <div class="pipeline-step" data-step="1"><span class="step-dot"></span>Fetch Data</div>
+          <div class="pipeline-step"><span class="step-arrow">›</span></div>
+          <div class="pipeline-step" data-step="2"><span class="step-dot"></span>Features</div>
+          <div class="pipeline-step"><span class="step-arrow">›</span></div>
+          <div class="pipeline-step" data-step="3"><span class="step-dot"></span>Train</div>
+          <div class="pipeline-step"><span class="step-arrow">›</span></div>
+          <div class="pipeline-step" data-step="4"><span class="step-dot"></span>Predict</div>
+          <div class="pipeline-step"><span class="step-arrow">›</span></div>
+          <div class="pipeline-step" data-step="5"><span class="step-dot"></span>Explain</div>
+          <div class="pipeline-step"><span class="step-arrow">›</span></div>
+          <div class="pipeline-step" data-step="6"><span class="step-dot"></span>Backtest</div>
+        </div>
+
+        <div class="status-row mt-2 d-flex flex-wrap align-items-center gap-2">
+          <div id="status" class="status-pill">Ready</div>
+          <div id="lastUpdated" class="status-meta">Waiting for first analysis</div>
+        </div>
+
+        <!-- ===== UPLOAD (COLLAPSED) ===== -->
+        <div class="collapse mt-3" id="uploadCollapse">
+          <div class="upload-panel p-3">
+            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+              <div>
+                <h6 class="section-title mb-0">Upload any stock dataset</h6>
+                <div class="small" style="color: var(--ink-dim)">CSV, TSV, JSON, XLSX, Parquet, Feather — multi-symbol files auto-filtered</div>
+              </div>
+              <div class="upload-hint-pill">7 formats</div>
+            </div>
+            <div class="row g-2 align-items-end">
+              <div class="col-lg-5">
+                <label for="datasetFile" class="form-label">File</label>
+                <input id="datasetFile" type="file" class="form-control" accept=".csv,.tsv,.txt,.json,.xlsx,.parquet,.feather">
+              </div>
+              <div class="col-lg-4">
+                <label for="uploadTicker" class="form-label">Ticker (optional)</label>
+                <input id="uploadTicker" class="form-control" list="uploadTickerSuggestions" placeholder="e.g. RELIANCE.NS">
+                <datalist id="uploadTickerSuggestions">
+                  {% for stock in stocks %}
+                  <option value="{{ stock.ticker }}">{{ stock.ticker }} — {{ stock.name }}</option>
+                  {% endfor %}
+                </datalist>
+              </div>
+              <div class="col-lg-3 d-grid">
+                <button id="uploadTrainBtn" class="btn btn-primary">
+                  <span class="spinner-border spinner-border-sm me-1 d-none upload-spinner" role="status"></span>
+                  <span class="btn-label">Upload + Predict</span>
+                </button>
+              </div>
+            </div>
+            <div class="upload-summary-grid mt-2" id="uploadSummaryGrid">
+              <div class="upload-summary-card" style="color:var(--ink-dim); font-size:0.82rem;">Upload a file to see summary.</div>
+            </div>
+            <div class="mt-2">
+              <div id="uploadValues" class="small" style="color:var(--ink-dim)"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== TABS ===== -->
+    <ul class="nav nav-tabs tabs-pro mb-3" id="resultTabs" role="tablist">
+      <li class="nav-item" role="presentation"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#overview" type="button">Dashboard</button></li>
+      <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#screener" type="button">Screener</button></li>
+      <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#sectorView" type="button">Sectors</button></li>
+      <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#compare" type="button">Compare</button></li>
+      <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#analysis" type="button">Deep Dive</button></li>
+      <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#backtesting" type="button">Backtest</button></li>
+      <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#about" type="button">About</button></li>
+    </ul>
+
+    <div class="tab-content">
+
+      <!-- ===== DASHBOARD TAB ===== -->
+      <section class="tab-pane fade show active" id="overview">
+        <!-- Signal Gauge + Key Metrics -->
+        <div class="row g-3 mb-3">
+          <div class="col-lg-4">
+            <div class="card h-100 border-0"><div class="card-body text-center py-4">
+              <h6 class="section-title">Signal</h6>
+              <div id="signalGauge" class="gauge-container">
+                <svg viewBox="0 0 200 110">
+                  <path d="M20,100 A80,80 0 0,1 180,100" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="14" stroke-linecap="round"/>
+                  <path id="gaugeArc" d="M20,100 A80,80 0 0,1 180,100" fill="none" stroke="url(#gaugeGrad)" stroke-width="14" stroke-linecap="round" stroke-dasharray="0 251.2"/>
+                  <defs>
+                    <linearGradient id="gaugeGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                      <stop offset="0%" stop-color="#fb7185"/>
+                      <stop offset="50%" stop-color="#fbbf24"/>
+                      <stop offset="100%" stop-color="#34d399"/>
+                    </linearGradient>
+                  </defs>
+                </svg>
+                <div class="gauge-label">
+                  <div id="gaugeSignalText" class="signal-text" style="color:var(--ink-dim)">—</div>
+                  <div id="gaugeConfText" class="confidence-text">Run analysis</div>
+                </div>
+              </div>
+            </div></div>
+          </div>
+          <div class="col-lg-8">
+            <div class="row g-3" id="topMetrics">
+              <div class="col-6 col-xl-3"><div class="metric-card p-3 h-100"><div class="metric-label">Price</div><div class="metric-value" id="metricPrice">—</div></div></div>
+              <div class="col-6 col-xl-3"><div class="metric-card p-3 h-100"><div class="metric-label">Sector</div><div class="metric-value" id="metricSector" style="font-size:1rem">—</div></div></div>
+              <div class="col-6 col-xl-3"><div class="metric-card p-3 h-100"><div class="metric-label">Risk</div><div class="metric-value" id="metricRisk">—</div></div></div>
+              <div class="col-6 col-xl-3"><div class="metric-card p-3 h-100"><div class="metric-label">Model</div><div class="metric-value" id="metricModel" style="font-size:0.88rem">—</div></div></div>
+            </div>
+            <!-- Top Picks row -->
+            <div class="row g-3 mt-0" id="topPicks"></div>
+          </div>
+        </div>
+
+        <!-- Probability + Drivers -->
+        <div class="row g-3 mb-3">
+          <div class="col-lg-6">
+            <div class="card h-100 border-0"><div class="card-body">
+              <h6 class="section-title">Model Probabilities</h6>
+              <div id="probabilityBars"></div>
+              <div id="probabilityChart" class="mini-chart-wrap mt-3"></div>
+            </div></div>
+          </div>
+          <div class="col-lg-6">
+            <div class="card h-100 border-0"><div class="card-body">
+              <h6 class="section-title">Top Driving Factors</h6>
+              <div id="topFeaturesChart" class="mini-chart-wrap mb-2"></div>
+              <div class="table-responsive"><table class="table table-sm" id="topFeaturesTable"></table></div>
+            </div></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===== SCREENER TAB ===== -->
+      <section class="tab-pane fade" id="screener">
+        <div class="card border-0 mb-3"><div class="card-body">
+          <h6 class="section-title">NSE Stock Screener</h6>
+          <div class="row g-2 align-items-end">
+            <div class="col-md-3">
+              <label for="screenerSector" class="form-label">Sector</label>
+              <select id="screenerSector" class="form-select"><option value="all" selected>All Sectors</option></select>
+            </div>
+            <div class="col-md-3">
+              <label for="screenerConfidence" class="form-label">Min Confidence</label>
+              <input id="screenerConfidence" type="number" min="0" max="1" step="0.05" value="0.55" class="form-control">
+            </div>
+            <div class="col-md-3">
+              <label for="screenerVolumeRatio" class="form-label">Min Vol Ratio</label>
+              <input id="screenerVolumeRatio" type="number" min="0" step="0.1" value="0" class="form-control">
+            </div>
+            <div class="col-md-3 d-grid"><button id="runScreenerBtn" class="btn btn-primary">Run Screener</button></div>
+          </div>
+          <div class="small mt-2" style="color:var(--ink-dim)" id="screenerSummary">No screener run yet.</div>
+        </div></div>
+        <div class="card border-0 mb-3"><div class="card-body">
+          <h6 class="section-title">Signal Mix</h6>
+          <div id="screenerChart" class="mini-chart-wrap"></div>
+        </div></div>
+        <div class="row g-3">
+          <div class="col-lg-6"><div class="card border-0"><div class="card-body">
+            <h6 class="section-title" style="color:var(--green)">▲ Bullish</h6>
+            <div class="table-responsive"><table class="table table-sm" id="screenerBullishTable"></table></div>
+          </div></div></div>
+          <div class="col-lg-6"><div class="card border-0"><div class="card-body">
+            <h6 class="section-title" style="color:var(--red)">▼ Bearish</h6>
+            <div class="table-responsive"><table class="table table-sm" id="screenerBearishTable"></table></div>
+          </div></div></div>
+        </div>
+      </section>
+
+      <!-- ===== SECTOR TAB ===== -->
+      <section class="tab-pane fade" id="sectorView">
+        <div class="card border-0 mb-3"><div class="card-body d-flex flex-wrap justify-content-between align-items-center gap-2">
+          <div>
+            <h6 class="section-title mb-0">Sector Heatmap</h6>
+            <div class="small" style="color:var(--ink-dim)" id="sectorSummary">Click refresh to load.</div>
+          </div>
+          <button id="refreshSectorBtn" class="btn btn-outline-primary btn-sm">Refresh</button>
+        </div></div>
+        <div class="row g-3 mb-3" id="sectorHeatmap"></div>
+        <div class="card border-0 mb-3"><div class="card-body">
+          <h6 class="section-title">Rotation Insights</h6>
+          <ul class="mb-0" id="rotationInsights"></ul>
+        </div></div>
+        <div class="card border-0"><div class="card-body">
+          <h6 class="section-title">Sector Table</h6>
+          <div class="table-responsive"><table class="table table-sm" id="sectorDetailTable"></table></div>
+        </div></div>
+      </section>
+
+      <!-- ===== COMPARE TAB ===== -->
+      <section class="tab-pane fade" id="compare">
+        <div class="card border-0 mb-3"><div class="card-body">
+          <h6 class="section-title">Compare Stocks</h6>
+          <div class="row g-2 align-items-end">
+            <div class="col-md-3">
+              <label for="compareTicker1" class="form-label">Stock 1</label>
+              <select id="compareTicker1" class="form-select">{% for stock in stocks %}<option value="{{ stock.ticker }}">{{ stock.ticker }}</option>{% endfor %}</select>
+            </div>
+            <div class="col-md-3">
+              <label for="compareTicker2" class="form-label">Stock 2</label>
+              <select id="compareTicker2" class="form-select">{% for stock in stocks %}<option value="{{ stock.ticker }}">{{ stock.ticker }}</option>{% endfor %}</select>
+            </div>
+            <div class="col-md-3">
+              <label for="compareTicker3" class="form-label">Stock 3</label>
+              <select id="compareTicker3" class="form-select"><option value="" selected>Optional</option>{% for stock in stocks %}<option value="{{ stock.ticker }}">{{ stock.ticker }}</option>{% endfor %}</select>
+            </div>
+            <div class="col-md-3 d-grid"><button id="runCompareBtn" class="btn btn-primary">Compare</button></div>
+          </div>
+          <div class="small mt-2" style="color:var(--ink-dim)" id="compareSummary">Pick 2+ stocks.</div>
+        </div></div>
+        <div class="row g-3 mb-3">
+          <div class="col-lg-6"><div class="card border-0 h-100"><div class="card-body">
+            <h6 class="section-title">Confidence</h6><div id="compareChart" class="mini-chart-wrap"></div>
+          </div></div></div>
+          <div class="col-lg-6"><div class="card border-0 h-100"><div class="card-body">
+            <h6 class="section-title">Probabilities</h6><div id="compareProbChart" class="mini-chart-wrap"></div>
+          </div></div></div>
+        </div>
+        <div class="card border-0 mb-3"><div class="card-body">
+          <h6 class="section-title">Risk vs Return</h6><div id="compareRiskReturnChart" class="mini-chart-wrap"></div>
+        </div></div>
+        <div class="row g-3 mb-3" id="compareSignalCards"></div>
+        <div class="card border-0"><div class="card-body">
+          <h6 class="section-title">Detail Table</h6>
+          <div class="table-responsive"><table class="table table-sm" id="compareTable"></table></div>
+        </div></div>
+      </section>
+
+      <!-- ===== DEEP DIVE TAB ===== -->
+      <section class="tab-pane fade" id="analysis">
+        <div class="row g-3 mb-3">
+          <div class="col-lg-6"><div class="card border-0"><div class="card-body" id="predictionSummary"></div></div></div>
+          <div class="col-lg-6"><div class="card border-0"><div class="card-body" id="technicalSummary"></div></div></div>
+        </div>
+        <div class="row g-3 mb-3">
+          <div class="col-lg-6"><div class="card border-0"><div class="card-body" id="regimeSummary"></div></div></div>
+          <div class="col-lg-6"><div class="card border-0"><div class="card-body" id="riskSummary"></div></div></div>
+        </div>
+        <div class="card border-0"><div class="card-body">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <h6 class="section-title mb-0">Price Chart (30 sessions)</h6>
+          </div>
+          <div id="miniChart" class="mini-chart-wrap"></div>
+        </div></div>
+      </section>
+
+       <!-- ===== BACKTEST TAB ===== -->
+      <section class="tab-pane fade" id="backtesting">
+        <div class="card border-0"><div class="card-body">
+          <h6 class="section-title">Strategy Comparison</h6>
+          <div class="table-responsive"><table class="table" id="backtestTable"></table></div>
+        </div></div>
+      </section>
+
+      <!-- ===== ABOUT TAB ===== -->
+      <section class="tab-pane fade" id="about">
+        <div class="card border-0"><div class="card-body">
+          <h5>About This Project</h5>
+          <p>ML-powered stock-direction analysis for NIFTY 50 using XGBoost + Random Forest ensemble.</p>
+
+          <div class="row g-3 mt-3">
+            <div class="col-md-4"><div class="about-step-card">
+              <div class="about-step-label">01</div>
+              <div class="about-step-title">Pick or Upload</div>
+              <div class="about-step-text">Select a NIFTY 50 stock or upload your own CSV/XLSX dataset.</div>
+            </div></div>
+            <div class="col-md-4"><div class="about-step-card">
+              <div class="about-step-label">02</div>
+              <div class="about-step-title">Train + Predict</div>
+              <div class="about-step-text">XGBoost trains on engineered features, then generates a directional signal with confidence.</div>
+            </div></div>
+            <div class="col-md-4"><div class="about-step-card">
+              <div class="about-step-label">03</div>
+              <div class="about-step-title">Explore Results</div>
+              <div class="about-step-text">View SHAP drivers, regime analysis, risk metrics, and backtest comparisons.</div>
+            </div></div>
+          </div>
+
+          <h6 class="mt-4 mb-2">Pipeline Details</h6>
+          <ul>
+            <li><strong>Engine:</strong> XGBoost (primary) + Random Forest, weighted ensemble</li>
+            <li><strong>Features:</strong> RSI, MACD, Bollinger, ATR, OBV, ADX, Stochastic, momentum, volume ratios, lagged returns</li>
+            <li><strong>Target:</strong> 5-day forward return direction (bullish if &gt;1.5%)</li>
+            <li><strong>Explainability:</strong> SHAP values (fallback: native feature importance)</li>
+            <li><strong>Data:</strong> Local CSV files → Yahoo Finance fallback</li>
+          </ul>
+
+          <div class="alert alert-light border mt-3 mb-0" role="alert">
+            Decision-support tool for education and analysis, not financial advice.
+          </div>
+        </div></div>
+      </section>
+
+    </div>
+  </main>
+
+  <footer class="app-footer">
+    <div class="container d-flex flex-wrap justify-content-between gap-2">
+      <span>Decision support tool for educational use.</span>
+      <span>FastAPI · XGBoost · SHAP · Bootstrap</span>
+    </div>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="/static/js/app.js?v=20260407a"></script>
+</body>
+</html>
