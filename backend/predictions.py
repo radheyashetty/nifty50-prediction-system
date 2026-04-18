@@ -43,12 +43,7 @@ class PredictionService:
         self.lookback_days = lookback_days
         self.data_ingestion = DataIngestion(lookback_days=lookback_days)
         self.feature_engineer = FeatureEngineer()
-        self.scaler = StandardScaler()
 
-        self.xgb_model = None
-        self.rf_model = None
-        self.ensemble_model = EnsemblePredictor(xgb_weight=0.6, rf_weight=0.4)
-        self.explainer = None
 
         self.regime_detector = RegimeDetector(n_regimes=3)
         self.vol_regime_detector = VolatilityRegimeDetector()
@@ -73,12 +68,14 @@ class PredictionService:
             "features": self.artifact_dir / f"features_{key}.joblib",
         }
 
-    def _save_trained_artifacts(self, ticker: str, feature_cols: list) -> None:
-        if self.xgb_model is None:
+    def _save_trained_artifacts(
+        self, ticker: str, xgb_model: XGBoostPredictor, scaler: StandardScaler, feature_cols: list
+    ) -> None:
+        if xgb_model is None:
             return
         paths = self._artifact_paths(ticker)
-        self.xgb_model.save(str(paths["model"]))
-        joblib.dump(self.scaler, paths["scaler"])
+        xgb_model.save(str(paths["model"]))
+        joblib.dump(scaler, paths["scaler"])
         joblib.dump(feature_cols, paths["features"])
 
     def _load_trained_artifacts(self, ticker: str) -> Dict[str, Any] | None:
@@ -208,6 +205,13 @@ class PredictionService:
         cache_key: str,
     ) -> Dict[str, Any]:
         """Run prediction/training pipeline using already-loaded price data."""
+        # Reset state to cleanly prevent cross-ticker/cross-request data bleeding.
+        # Use local variables for thread safety
+        scaler = StandardScaler()
+        xgb_model = None
+        rf_model = None
+        ensemble_model = EnsemblePredictor(xgb_weight=0.6, rf_weight=0.4)
+
         # Step 2: Feature engineering
         print("[2/6] Engineering features...")
         try:
@@ -260,6 +264,16 @@ class PredictionService:
         # Align features to trained model when running without training.
         if artifacts is not None:
             trained_cols = list(artifacts["feature_cols"])
+            loaded_scaler = artifacts["scaler"]
+            
+            # Cross-verify scaler compatibility
+            try:
+                if hasattr(loaded_scaler, "n_features_in_") and loaded_scaler.n_features_in_ != len(trained_cols):
+                    print(f"⚠️ Artifact mismatch for {ticker}: scaler expects {loaded_scaler.n_features_in_}, but features say {len(trained_cols)}. Forcing retrain...")
+                    return self.predict_stock(ticker, retrain=True)
+            except Exception:
+                pass
+
             X_df = X_df.reindex(columns=trained_cols, fill_value=0.0)
             feature_cols = trained_cols
 
@@ -289,28 +303,33 @@ class PredictionService:
         # Normalize
         try:
             if mode == "after_training":
-                X_train_scaled = self.scaler.fit_transform(X_train)
-                X_test_scaled = self.scaler.transform(X_test)
+                X_train_scaled = scaler.fit_transform(X_train)
+                X_test_scaled = scaler.transform(X_test)
             else:
                 if artifacts is None:
                     # cache mode fallback: train only when artifacts are unavailable.
-                    X_train_scaled = self.scaler.fit_transform(X_train)
-                    X_test_scaled = self.scaler.transform(X_test)
+                    X_train_scaled = scaler.fit_transform(X_train)
+                    X_test_scaled = scaler.transform(X_test)
                     mode = "after_training"
                 else:
-                    self.xgb_model = artifacts["model"]
-                    self.scaler = artifacts["scaler"]
-                    X_train_scaled = self.scaler.transform(X_train)
-                    X_test_scaled = self.scaler.transform(X_test)
+                    xgb_model = artifacts["model"]
+                    scaler = artifacts["scaler"]
+                    X_train_scaled = scaler.transform(X_train)
+                    X_test_scaled = scaler.transform(X_test)
         except Exception as exc:
+            if mode == "cache":
+                print(
+                    f"🔄 Scaling failed for {ticker} (possible feature mismatch): {exc}. Forcing retraining..."
+                )
+                return self.predict_stock(ticker, retrain=True)
             return {"error": f"Feature scaling failed for {ticker}: {exc}"}
 
         # Step 4: Train or infer
         if mode == "after_training":
             print("[3/6] Training models...")
             try:
-                self.xgb_model = XGBoostPredictor(n_estimators=150, max_depth=4)
-                self.xgb_model.train(
+                xgb_model = XGBoostPredictor(n_estimators=150, max_depth=4)
+                xgb_model.train(
                     X_train_scaled,
                     y_train,
                     X_test_scaled,
@@ -318,20 +337,20 @@ class PredictionService:
                     feature_names=feature_cols,
                 )
 
-                self.rf_model = RandomForestPredictor(n_estimators=300, max_depth=15)
-                self.rf_model.train(X_train_scaled, y_train, feature_names=feature_cols)
+                rf_model = RandomForestPredictor(n_estimators=300, max_depth=15)
+                rf_model.train(X_train_scaled, y_train, feature_names=feature_cols)
 
-                self.ensemble_model.fit(self.xgb_model, self.rf_model)
-                self._save_trained_artifacts(ticker, feature_cols)
+                ensemble_model.fit(xgb_model, rf_model)
+                self._save_trained_artifacts(ticker, xgb_model, scaler, feature_cols)
             except Exception as exc:
                 return {"error": f"Model training failed for {ticker}: {exc}"}
         else:
             print("[3/6] Running cached model inference...")
 
-        if self.xgb_model is None:
+        if xgb_model is None:
             return {"error": f"Model is not initialized for {ticker}"}
 
-        model = self.xgb_model
+        model = xgb_model
 
         try:
             # Check for feature shape mismatch before predicting
@@ -355,13 +374,13 @@ class PredictionService:
 
             xgb_preds = model.predict(X_test_scaled)
             rf_preds = (
-                self.rf_model.predict(X_test_scaled)
-                if self.rf_model is not None
+                rf_model.predict(X_test_scaled)
+                if rf_model is not None
                 else xgb_preds
             )
 
-            self.ensemble_model.fit(self.xgb_model, self.rf_model)
-            ensemble_pred = self.ensemble_model.predict_proba(X_test_scaled)
+            ensemble_model.fit(xgb_model, rf_model)
+            ensemble_pred = ensemble_model.predict_proba(X_test_scaled)
             if len(ensemble_pred) == 0:
                 ensemble_pred = xgb_preds
 
@@ -383,15 +402,15 @@ class PredictionService:
         if requested_mode != "screening":
             print("[4/6] Generating explanations...")
             try:
-                self.explainer = ModelExplainer(
+                explainer = ModelExplainer(
                     model, X_train=X_train_scaled, feature_names=feature_cols
                 )
-                self.explainer.create_explainer("xgboost")
+                explainer.create_explainer("xgboost")
             except Exception as exc:
                 return {"error": f"Explainer setup failed for {ticker}: {exc}"}
 
             try:
-                explanation = self.explainer.explain_prediction(X_test_scaled, index=-1)
+                explanation = explainer.explain_prediction(X_test_scaled, index=-1)
             except Exception as e:
                 print(
                     f"Warning: SHAP explanation failed, using feature-importance fallback: {e}"
@@ -429,17 +448,19 @@ class PredictionService:
         print("[5/6] Analyzing market regime...")
         # ... (rest of step 6)
 
-        # Step 6: Analyze regime and get metrics
-        print("[5/6] Analyzing market regime...")
+        # Use local detectors for thread safety
+        regime_detector = RegimeDetector(n_regimes=3)
+        vol_regime_detector = VolatilityRegimeDetector()
+
         try:
-            self.regime_detector.detect_regimes(raw_data)
-            current_regime = self.regime_detector.get_current_regime()
+            regime_detector.detect_regimes(raw_data)
+            current_regime = regime_detector.get_current_regime()
         except Exception as exc:
             print(f"Warning: regime detection failed for {ticker}: {exc}")
             current_regime = "Unknown"
 
         try:
-            vol_regimes = self.vol_regime_detector.detect_regimes(raw_data)
+            vol_regimes = vol_regime_detector.detect_regimes(raw_data)
             current_vol_regime = vol_regimes["current_regime"]
         except Exception as exc:
             print(f"Warning: volatility regime detection failed for {ticker}: {exc}")
@@ -499,7 +520,7 @@ class PredictionService:
                 "xgboost_auc": float(xgb_metrics["auc_roc"]),
                 "xgboost_accuracy": float(xgb_metrics["accuracy"]),
                 "model_used": "XGBoost",
-                "xgboost_device": getattr(self.xgb_model, "device", "cpu"),
+                "xgboost_device": getattr(xgb_model, "model", "cpu"),
             },
             "model_metrics": {
                 "accuracy": float(ensemble_metrics["accuracy"]),

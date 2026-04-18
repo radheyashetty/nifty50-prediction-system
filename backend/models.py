@@ -98,7 +98,8 @@ class XGBoostPredictor:
         try:
             return self.model.predict_proba(X)[:, 1]
         except Exception as exc:
-            logger.error(f"Prediction failed: {exc}")
+            input_shape = getattr(X, "shape", "unknown")
+            logger.error(f"Prediction failed: {exc} | Input shape: {input_shape}")
             return np.zeros(len(X))
 
     def get_feature_importance(self) -> dict[str, float]:
@@ -127,7 +128,10 @@ class XGBoostPredictor:
                 sorted(feature_map.items(), key=lambda item: item[1], reverse=True)
             )
         except Exception as exc:
-            logger.error(f"Failed to extract feature importance: {exc}")
+            if "fit or load_model" in str(exc):
+                logger.error(f"Failed to extract feature importance: Model not fitted.")
+            else:
+                logger.error(f"Failed to extract feature importance: {exc}")
             return {}
 
     def save(self, path):
