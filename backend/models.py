@@ -61,14 +61,26 @@ class XGBoostPredictor:
             random_state=random_state,
             objective="binary:logistic",
             eval_metric="logloss",
-            tree_method="hist",
-            device="cuda" if use_gpu else "cpu",
+            tree_method="gpu_hist" if use_gpu else "auto",
+            predictor="gpu_predictor" if use_gpu else "auto",
             subsample=0.8,
             colsample_bytree=0.8,
             reg_alpha=0.1,
             reg_lambda=1.0,
             verbosity=0,
         )
+
+    @property
+    def device(self) -> str:
+        """Return the device (CPU/GPU) being used by the model."""
+        try:
+            params = self.model.get_params()
+            tree_method = params.get("tree_method", "")
+            if tree_method and "gpu" in str(tree_method).lower():
+                return "gpu"
+        except Exception:
+            pass
+        return "cpu"
 
     def _use_gpu(self) -> bool:
         value = os.getenv("ML_USE_GPU", "auto").strip().lower()

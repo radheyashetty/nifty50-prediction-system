@@ -18,8 +18,9 @@ def verify_all_tabs():
     else:
         db_signal = dashboard_res["signal"]
         db_conf = dashboard_res["confidence"]
-        db_rsi = dashboard_res["indicators"]["rsi_14"]
-        print(f"Signal: {db_signal} | Conf: {db_conf:.4f} | RSI: {db_rsi:.2f}")
+        db_rsi = dashboard_res["technical_indicators"]["rsi_14"]
+        db_device = dashboard_res["model_performance"]["xgboost_device"]
+        print(f"Signal: {db_signal} | Conf: {db_conf:.4f} | RSI: {db_rsi:.2f} | Device: {db_device}")
 
     print(f"\n--- [2] SCREENER CHECK ({ticker}) ---")
     screener_res = screener.run_screener(min_confidence=0, use_cache=False)

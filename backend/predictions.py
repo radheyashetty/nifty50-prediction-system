@@ -26,6 +26,7 @@ from .models import (
 )
 from .explainability import ModelExplainer, create_summary_explanation
 from .backtesting import BacktestEngine
+from .portfolio_optimization import PortfolioOptimizer
 from .regime_detection import RegimeDetector, VolatilityRegimeDetector
 from .utils import get_ticker_sector
 from sklearn.preprocessing import StandardScaler
@@ -520,7 +521,7 @@ class PredictionService:
                 "xgboost_auc": float(xgb_metrics["auc_roc"]),
                 "xgboost_accuracy": float(xgb_metrics["accuracy"]),
                 "model_used": "XGBoost",
-                "xgboost_device": getattr(xgb_model, "model", "cpu"),
+                "xgboost_device": getattr(xgb_model, "device", "cpu"),
             },
             "model_metrics": {
                 "accuracy": float(ensemble_metrics["accuracy"]),
@@ -877,6 +878,52 @@ class PredictionService:
             requested_mode=requested_mode,
             cache_key=cache_key,
         )
+
+    def analyze_portfolio(self, tickers: list[str]) -> Dict[str, Any]:
+        """
+        Analyze and optimize a portfolio of stocks.
+        
+        Args:
+            tickers: List of NSE tickers
+            
+        Returns:
+            Optimization results and performance metrics
+        """
+        print(f"\n[1/3] Fetching data for {len(tickers)} stocks...")
+        optimizer = PortfolioOptimizer(risk_free_rate=0.05)
+        valid_tickers = []
+        
+        for ticker in tickers:
+            try:
+                data = self.data_ingestion.process_stock_data(ticker)
+                if data is not None and not data.empty:
+                    optimizer.add_asset(ticker, data["close"])
+                    valid_tickers.append(ticker)
+            except Exception as e:
+                print(f"Warning: Could not fetch data for {ticker}: {e}")
+        
+        if not valid_tickers:
+            return {"error": "No valid data found for any of the requested tickers."}
+            
+        print(f"[2/3] Running optimizations for {len(valid_tickers)} stocks...")
+        try:
+            optimizer.calculate_statistics()
+            max_sharpe = optimizer.optimize_max_sharpe()
+            min_vol = optimizer.optimize_min_volatility()
+            corr_matrix = optimizer.correlation_analysis()
+        except Exception as e:
+            return {"error": f"Portfolio optimization failed: {e}"}
+            
+        print("[3/3] Compiling portfolio report...")
+        return {
+            "tickers": valid_tickers,
+            "optimizations": {
+                "max_sharpe": max_sharpe,
+                "min_volatility": min_vol
+            },
+            "correlation_matrix": corr_matrix.to_dict(),
+            "timestamp": datetime.now().isoformat()
+        }
 
     # Removed light heuristic in favor of full ensemble deep-dive.
 
