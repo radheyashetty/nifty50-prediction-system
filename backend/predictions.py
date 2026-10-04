@@ -1,4 +1,4 @@
-﻿"""
+"""
 Main Prediction Service
 Orchestrates all components for end-to-end prediction pipeline
 """
@@ -506,9 +506,13 @@ class PredictionService:
                 rsi_results = {"total_return": 0.0, "sharpe_ratio": 0.0, "max_drawdown": 0.0}
 
             try:
+                X_all_scaled = scaler.transform(X)
+                ml_all_probs = ensemble_model.predict_proba(X_all_scaled)
+                if len(ml_all_probs) == 0:
+                    ml_all_probs = ensemble_pred
                 ml_signals = pd.Series(0, index=prices.index, dtype=float)
-                n_ml = min(len(ensemble_pred), len(ml_signals))
-                ml_signals.iloc[-n_ml:] = np.where(np.asarray(ensemble_pred)[-n_ml:] > 0.55, 1, 0)
+                n_ml = min(len(ml_all_probs), len(ml_signals))
+                ml_signals.iloc[-n_ml:] = np.where(np.asarray(ml_all_probs)[-n_ml:] > 0.50, 1, 0)
                 ml_results = self.backtest_engine.backtest_strategy(
                     prices, ml_signals, strategy_name="ML Strategy"
                 )
@@ -549,6 +553,7 @@ class PredictionService:
         # Compile results
         latest_price = raw_data["close"].iloc[-1]
         prediction_3d = float(np.asarray(ensemble_pred)[-1])
+        asset_dd = float(bh_results.get("max_drawdown", backtest_results.get("max_drawdown", 0.0)))
 
         indicator_snapshot = self.feature_engineer.get_indicator_snapshot(data)
 
@@ -748,9 +753,9 @@ class PredictionService:
                         * 100.0
                     )
                 ),
-                "max_drawdown_analysis": f"{backtest_results['max_drawdown']:.2f}%",
+                "max_drawdown_analysis": f"{asset_dd:.2f}%",
                 "risk_level": self._assess_risk_level(
-                    vol_regimes["current_volatility"], backtest_results["max_drawdown"]
+                    vol_regimes["current_volatility"], asset_dd
                 ),
             },
             # Explanation text

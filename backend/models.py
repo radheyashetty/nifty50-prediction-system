@@ -92,9 +92,7 @@ class XGBoostPredictor:
         return False
 
     def train(self, X_train, y_train, X_val, y_val, feature_names=None, **_kwargs):
-        neg = max(int((y_train == 0).sum()), 1)
-        pos = max(int((y_train == 1).sum()), 1)
-        self.model.set_params(scale_pos_weight=neg / pos)
+        self.model.set_params(scale_pos_weight=1.0)
         if feature_names is not None:
             self.feature_names_ = list(feature_names)
 

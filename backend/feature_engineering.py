@@ -180,8 +180,11 @@ class FeatureEngineer:
 
     @staticmethod
     def calculate_returns(prices: pd.Series, periods: int = 1) -> pd.Series:
-        """Calculate log returns"""
-        returns = np.log(prices / prices.shift(periods))
+        """Calculate log returns (handles past periods and negative forward periods)."""
+        if periods < 0:
+            returns = np.log(prices.shift(periods) / prices)
+        else:
+            returns = np.log(prices / prices.shift(periods))
         return pd.Series(returns, index=prices.index).fillna(0)
 
     @staticmethod

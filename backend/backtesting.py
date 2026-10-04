@@ -182,14 +182,18 @@ class BacktestEngine:
     def _calculate_sharpe(returns: pd.Series, risk_free_rate: float = 0.05) -> float:
         """Calculate Sharpe Ratio"""
         if len(returns) == 0:
-            return 0
+            return 0.0
+
+        if (returns == 0).all() or float(returns.std()) < 1e-7:
+            return 0.0
 
         excess_returns = returns - risk_free_rate / 252  # Daily rate
-        if excess_returns.std() == 0:
-            return 0
+        std = float(excess_returns.std())
+        if std < 1e-7:
+            return 0.0
 
-        sharpe = (excess_returns.mean() / excess_returns.std()) * np.sqrt(252)
-        return float(sharpe)
+        sharpe = (float(excess_returns.mean()) / std) * np.sqrt(252)
+        return float(np.clip(sharpe, -10.0, 10.0))
 
     @staticmethod
     def _calculate_max_drawdown(cumulative_returns: pd.Series) -> float:
@@ -223,6 +227,7 @@ class BacktestEngine:
         annualized_return_pct: float, max_drawdown_pct: float
     ) -> float:
         """Calculate Calmar ratio using annualized return and max drawdown."""
-        if max_drawdown_pct == 0:
+        if abs(max_drawdown_pct) < 1e-5:
             return 0.0
-        return float(annualized_return_pct / abs(max_drawdown_pct))
+        calmar = annualized_return_pct / abs(max_drawdown_pct)
+        return float(np.clip(calmar, -50.0, 50.0))
