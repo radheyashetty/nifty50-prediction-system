@@ -1,14 +1,6 @@
-"""
-Example unit tests for data utilities.
-
-This file demonstrates testing patterns for:
-- Data normalization functions
-- Ticker validation
-- Exception handling
-"""
-
 import pytest
 from backend.utils import get_ticker_sector
+from backend.models import _safe_float
 
 
 class TestTickerValidation:
@@ -50,8 +42,6 @@ class TestDataNormalization:
     )
     def test_safe_float_conversion(self, value, expected_type) -> None:
         """Test safe float conversion with various inputs."""
-        from backend.models import _safe_float
-
         result = _safe_float(value)
         assert isinstance(result, expected_type) or result == 0.0 or result is None
 

@@ -68,6 +68,11 @@ class CompareRequest(BaseModel):
     tickers: list[str] = Field(default_factory=list, min_length=2, max_length=4)
 
 
+class PortfolioRequest(BaseModel):
+    tickers: list[str] = Field(default_factory=list, min_length=2, max_length=10)
+
+
+
 def _to_jsonable(value: Any) -> Any:
     """Convert numpy/scalar containers to JSON-safe values."""
     if isinstance(value, dict):
@@ -511,3 +516,24 @@ async def compare_stocks(payload: CompareRequest):
             "best_signal": best_signal,
         }
     )
+
+
+@app.post("/api/portfolio")
+async def analyze_portfolio_endpoint(payload: PortfolioRequest):
+    service = _get_service(365)
+    clean_tickers = [_normalize_ticker(t) for t in payload.tickers if _normalize_ticker(t)]
+    if len(clean_tickers) < 2:
+        raise HTTPException(status_code=400, detail="Provide at least 2 tickers for portfolio optimization")
+    try:
+        result = await asyncio.wait_for(
+            run_sync(service.analyze_portfolio, clean_tickers),
+            timeout=30.0,
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Portfolio optimization failed: {e}")
+
+    if "error" in result:
+        raise HTTPException(status_code=400, detail=result["error"])
+
+    return _to_jsonable(result)
+

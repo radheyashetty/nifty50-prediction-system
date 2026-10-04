@@ -1,36 +1,27 @@
-"""
-Pytest fixtures and configuration for test suite.
-
-This file provides shared test utilities and fixtures used across test files.
-"""
-
-import pytest
-from pathlib import Path
 import sys
+from pathlib import Path
+import numpy as np
+import pandas as pd
+import pytest
 
 # Add project root to path for imports
 project_root = Path(__file__).parent.parent
-sys.path.insert(0, str(project_root))
+if str(project_root) not in sys.path:
+    sys.path.insert(0, str(project_root))
 
 
 @pytest.fixture
 def sample_ticker() -> str:
-    """Provide a valid NIFTY 50 ticker for testing."""
     return "RELIANCE.NS"
 
 
 @pytest.fixture
 def invalid_ticker() -> str:
-    """Provide an invalid ticker for negative testing."""
     return "INVALID_XYZ.NS"
 
 
 @pytest.fixture
-def sample_ohlcv_data():
-    """Provide sample OHLCV data for testing."""
-    import pandas as pd
-    import numpy as np
-
+def sample_ohlcv_data() -> pd.DataFrame:
     dates = pd.date_range("2023-01-01", periods=100)
     return pd.DataFrame(
         {
@@ -45,11 +36,7 @@ def sample_ohlcv_data():
 
 
 @pytest.fixture
-def sample_features_data():
-    """Provide sample feature engineering data."""
-    import pandas as pd
-    import numpy as np
-
+def sample_features_data() -> pd.DataFrame:
     return pd.DataFrame(
         {
             "SMA_20": np.random.uniform(0, 1, 50),
@@ -61,8 +48,7 @@ def sample_features_data():
 
 
 @pytest.fixture
-def mock_prediction_result():
-    """Provide a mock prediction result matching API contract."""
+def mock_prediction_result() -> dict:
     return {
         "ticker": "RELIANCE.NS",
         "signal": "BUY",
@@ -100,19 +86,14 @@ def mock_prediction_result():
     }
 
 
-# Pytest configuration
 def pytest_configure(config):
-    """Configure pytest markers."""
     config.addinivalue_line(
         "markers", "slow: marks tests as slow (deselect with '-m \"not slow\"')"
     )
     config.addinivalue_line("markers", "integration: marks tests as integration tests")
 
 
-# Hooks for test collection
 def pytest_collection_modifyitems(config, items):
-    """Modify test collection to add default markers."""
     for item in items:
-        # Auto-mark tests containing 'integration' as integration tests
         if "integration" in item.nodeid:
             item.add_marker(pytest.mark.integration)

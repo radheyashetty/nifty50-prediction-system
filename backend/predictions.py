@@ -447,9 +447,6 @@ class PredictionService:
 
         # Step 6: Analyze regime and get metrics
         print("[5/6] Analyzing market regime...")
-        # ... (rest of step 6)
-
-        # Use local detectors for thread safety
         regime_detector = RegimeDetector(n_regimes=3)
         vol_regime_detector = VolatilityRegimeDetector()
 
@@ -988,8 +985,6 @@ class PredictionService:
             "correlation_matrix": corr_matrix.to_dict(),
             "timestamp": datetime.now().isoformat()
         }
-
-    # Removed light heuristic in favor of full ensemble deep-dive.
 
     def _assess_risk_level(self, volatility: float, max_drawdown: float = 0.0) -> str:
         """Assess risk using both volatility and drawdown severity."""
