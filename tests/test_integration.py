@@ -13,11 +13,11 @@ class TestDataIngestionWorkflow:
 
     def test_load_ticker_data(self, sample_ticker) -> None:
         """Test loading data for a known ticker."""
-        # This example shows how to use fixtures
+        from backend.data_ingestion import DataIngestion
         assert sample_ticker == "RELIANCE.NS"
-        # In real implementation, this would test actual data loading
-        # result = DataIngestion().load_ticker_data(sample_ticker)
-        # assert len(result) > 0
+        result = DataIngestion(lookback_days=365).process_stock_data(sample_ticker)
+        assert result is not None
+        assert len(result) > 0
 
     def test_data_quality_checks(self, sample_ohlcv_data) -> None:
         """Test that data quality checks work correctly."""
@@ -91,18 +91,27 @@ class TestScreenerWorkflow:
     @pytest.mark.integration
     def test_screener_filters_by_confidence(self) -> None:
         """Test that screener properly filters by confidence threshold."""
-        # Example of marking as integration test
-        # In real implementation:
-        # results = StockScreener.run(min_confidence=0.60)
-        # assert all(r["confidence"] >= 0.60 for r in results["bullish"])
-        pass
+        from backend.screener import StockScreener
+        from backend.predictions import PredictionService
+        service = PredictionService(lookback_days=365)
+        screener = StockScreener(service)
+        results = screener.run_screener(min_confidence=0.60, use_cache=True, top_n=5)
+        assert "bullish" in results
+        assert "bearish" in results
+        for r in results["bullish"]:
+            assert r["confidence"] >= 0.60
 
     def test_screener_sector_filtering(self) -> None:
         """Test that screener can filter by sector."""
-        # Example placeholder
-        # results = StockScreener.run(sector="Information Technology")
-        # assert all(r["sector"] == "Information Technology" for r in results)
-        pass
+        from backend.screener import StockScreener
+        from backend.predictions import PredictionService
+        service = PredictionService(lookback_days=365)
+        screener = StockScreener(service)
+        results = screener.run_screener(sector="Information Technology", use_cache=True, top_n=5)
+        assert "bullish" in results
+        assert "bearish" in results
+        for r in results["bullish"] + results["bearish"]:
+            assert r["sector"] == "Information Technology"
 
 
 if __name__ == "__main__":

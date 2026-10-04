@@ -483,7 +483,71 @@ class PredictionService:
         # Step 7: Backtesting
         if requested_mode != "screening":
             print("[6/6] Running backtests...")
-            # ... (the rest of the backtesting logic is already there or was removed/condensed)
+            prices = raw_data["close"]
+            rsi_values = pd.Series(np.zeros(len(prices)), index=prices.index, dtype=float)
+
+            # Simple MA strategy for backtesting
+            try:
+                signals_ma, _ = self.backtest_engine.simple_ma_strategy(prices)
+                backtest_results = self.backtest_engine.backtest_strategy(prices, signals_ma)
+            except Exception as exc:
+                print(f"Warning: MA backtest failed for {ticker}: {exc}")
+                backtest_results = {
+                    "total_return": 0.0,
+                    "sharpe_ratio": 0.0,
+                    "max_drawdown": 0.0,
+                    "buy_hold_return": 0.0,
+                }
+
+            # Get RSI strategy
+            try:
+                rsi_values = self.feature_engineer.calculate_rsi(prices)
+                signals_rsi, _ = self.backtest_engine.rsi_strategy(prices, np.asarray(rsi_values))
+                rsi_results = self.backtest_engine.backtest_strategy(prices, signals_rsi)
+            except Exception as exc:
+                print(f"Warning: RSI backtest failed for {ticker}: {exc}")
+                rsi_results = {"total_return": 0.0, "sharpe_ratio": 0.0, "max_drawdown": 0.0}
+
+            try:
+                ml_signals = pd.Series(0, index=prices.index, dtype=float)
+                n_ml = min(len(ensemble_pred), len(ml_signals))
+                ml_signals.iloc[-n_ml:] = np.where(np.asarray(ensemble_pred)[-n_ml:] > 0.55, 1, 0)
+                ml_results = self.backtest_engine.backtest_strategy(
+                    prices, ml_signals, strategy_name="ML Strategy"
+                )
+            except Exception:
+                ml_results = {
+                    "total_return": 0.0,
+                    "annualized_return_pct": 0.0,
+                    "sharpe_ratio": 0.0,
+                    "max_drawdown": 0.0,
+                    "win_rate": 0.0,
+                    "num_trades": 0,
+                    "profit_factor": 0.0,
+                    "calmar_ratio": 0.0,
+                }
+
+            # Buy & Hold strategy (always long)
+            try:
+                bh_signals = pd.Series(1, index=prices.index, dtype=float)
+                bh_results = self.backtest_engine.backtest_strategy(
+                    prices, bh_signals, strategy_name="Buy & Hold"
+                )
+            except Exception:
+                bh_results = {
+                    "total_return": 0.0,
+                    "total_return_pct": 0.0,
+                    "annualized_return_pct": 0.0,
+                    "sharpe_ratio": 0.0,
+                    "max_drawdown": 0.0,
+                    "max_drawdown_pct": 0.0,
+                    "win_rate": 0.0,
+                    "win_rate_pct": 0.0,
+                    "num_trades": 1,
+                    "total_trades": 1,
+                    "profit_factor": 0.0,
+                    "calmar_ratio": 0.0,
+                }
 
         # Compile results
         latest_price = raw_data["close"].iloc[-1]

@@ -94,14 +94,7 @@ class DataIngestion:
     @staticmethod
     def _parse_dates_mixed(series: pd.Series) -> pd.Series:
         """Parse mixed date formats without dropping valid ISO rows."""
-        first_pass = pd.to_datetime(series, errors="coerce", dayfirst=False)
-        missing = first_pass.isna()
-        if missing.any():
-            second_pass = pd.to_datetime(
-                series[missing], errors="coerce", dayfirst=True
-            )
-            first_pass.loc[missing] = second_pass
-        return first_pass
+        return pd.to_datetime(series, errors="coerce", format="mixed", dayfirst=True)
 
     def __init__(self, lookback_days: int = 500):
         """

@@ -1,217 +1,232 @@
 # 📊 NIFTY 50 Stock Prediction & Analysis System
 
-A lightweight, portable machine learning system for predicting short-term stock direction in the NIFTY 50 using technical indicators, XGBoost models, and comprehensive backtesting.
+[![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.103+-009688.svg?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
+[![XGBoost](https://img.shields.io/badge/XGBoost-2.0+-eb5424.svg)](https://xgboost.readthedocs.io/)
+[![Tests](https://img.shields.io/badge/tests-25%20passed-brightgreen.svg)](tests/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-**Status:** Ready to deploy ✅
-**Last Updated:** April 2026
-**Python Version:** 3.9+
+An end-to-end quantitative machine learning system for predicting short-term stock direction in the **NIFTY 50 index**. Built with **FastAPI**, **XGBoost + Random Forest ensemble**, **SHAP model explainability**, **real-time stock screening**, **sector heatmap breadth**, and **quantitative backtesting**.
+
+---
+
+## 📸 Visual Showcase
+
+### 1. Interactive Prediction Dashboard
+*Real-time signal gauge, confidence calibration, probability ensemble, top picks, and SHAP feature drivers.*
+
+![NIFTY 50 Dashboard](docs/screenshots/01_dashboard_overview.png)
+
+---
+
+### 2. NSE Stock Screener
+*Live scanning across all 50 constituent stocks with conviction scoring, RSI, MACD, and signal breakdown.*
+
+![Stock Screener](docs/screenshots/03_stock_screener.png)
+
+---
+
+### 3. Sector Heatmap & Breadth
+*Visualizing bullish/bearish market breadth across banking, IT, energy, auto, pharma, and utilities.*
+
+![Sector Heatmap](docs/screenshots/04_sector_heatmap.png)
+
+---
+
+### 4. Multi-Stock Comparison
+*Compare up to 3 stocks side-by-side with confidence rankings, probability distributions, and risk-return positioning.*
+
+![Stock Comparison](docs/screenshots/05_stock_comparison.png)
+
+---
+
+### 5. Deep Dive & Classification Metrics
+*Full model diagnostics (ROC-AUC, Precision, Recall, Confusion Matrix) paired with technical indicators and 30-session price trends.*
+
+![Deep Dive Diagnostics](docs/screenshots/02_deep_dive_analysis.png)
+
+---
+
+### 6. Strategy Backtesting Engine
+*Benchmarking the ML Strategy against dual moving-average crossovers, RSI mean-reversion, and Buy & Hold.*
+
+![Strategy Backtesting](docs/screenshots/06_strategy_backtesting.png)
 
 ---
 
 ## 🎯 Key Features
 
-### Stock Direction Prediction
-- Analyzes historical OHLCV data from Yahoo Finance
-- Generates 20+ technical features (RSI, MACD, moving averages, volatility)
-- Trains XGBoost classifier for BULLISH vs BEARISH predictions
-- Confidence scores for each prediction
-
-### Explainable AI
-- SHAP-based feature importance analysis
-- Clear explanation of prediction drivers
-- Model transparency for investment decisions
-
-### Backtesting & Validation
-- Compares moving-average and RSI strategies
-- Reports return, Sharpe ratio, max drawdown
-- Risk metrics for informed trading
-
-### Portfolio Tools
-- Modern Portfolio Theory optimization
-- Correlation analysis across stocks
-- Sector-wise risk breakdown
+- **Directional Prediction Pipeline**: Predicts 5-day forward price movement (>1.5% target) using 20+ engineered technical indicators.
+- **Ensemble Architecture**: Combines **XGBoost** (primary classifier) with **Random Forest** for low-variance probability estimates.
+- **Explainable AI (XAI)**: SHAP-driven factor attribution revealing exactly why a bullish or bearish signal was triggered.
+- **Multi-Source Ingestion**: Resilient data layer supporting Yahoo Finance API, pre-downloaded offline CSVs, and user-uploaded custom datasets.
+- **NSE Market Screener**: Filters index stocks by sector, confidence threshold, and volume ratios.
+- **Sector Rotation Insights**: Dynamic sector breadth tracking to spot capital inflows and momentum shifts.
+- **Quantitative Backtester**: Computes Total Return, Sharpe Ratio, Maximum Drawdown, Win Rate, and Calmar Ratio.
+- **Zero-Setup Quickstart**: One-click launcher scripts for both Windows (`run.bat`) and macOS/Linux (`run.sh`).
 
 ---
 
-## 🚀 Quick Start (5 minutes)
+## 🚀 Quick Start (Under 2 Minutes)
 
-### Prerequisites
-- **Python 3.9+** ([download](https://www.python.org/downloads/))
-- **4GB RAM** (8GB+ recommended)
-- **Internet connection**
+### Automated Launch
 
-### Installation
-
-**Windows (PowerShell):**
+**Windows:**
 ```powershell
-# Navigate to project folder
-cd "C:\path\to\nifty50_prediction_system"
-
-# Run setup script
 .\run.bat
 ```
 
-**Mac/Linux (Bash):**
+**macOS / Linux:**
 ```bash
-cd /path/to/nifty50_prediction_system
-
-# Make script executable
 chmod +x run.sh
-
-# Run setup script
 ./run.sh
 ```
 
-### Access Dashboard
-Open: **http://localhost:8501**
+The startup script will automatically initialize the virtual environment, verify dependencies, and launch the server.
+
+Once started, open: **[http://localhost:8501](http://localhost:8501)**
 
 ---
 
-## 📁 Project Structure
+## 🛠️ Manual Installation
 
-```
-├── backend/                    # Core ML pipeline
-│   ├── data_ingestion.py      # Fetch stock data
-│   ├── feature_engineering.py # Technical indicators
-│   ├── models.py              # XGBoost, Random Forest
-│   ├── explainability.py      # SHAP analysis
-│   ├── backtesting.py         # Strategy testing
-│   ├── portfolio_optimization.py
-│   ├── regime_detection.py    # Market regimes
-│   ├── predictions.py         # Main orchestration
-│   └── utils.py
-│
-├── frontend/                   # Web UI (FastAPI + Bootstrap)
-│   ├── web_app.py            # FastAPI app
-│   ├── templates/            # HTML templates
-│   └── static/               # CSS, JS, assets
-│
-├── data/              # Data storage
-│   ├── external_nifty50/     # Pre-downloaded stock data
-│   ├── raw/
-│   └── processed/
-│
-├── tests/            # Unit & integration tests
-├── requirements.txt  # Dependencies
-├── INSTALL.md       # Detailed setup guide
-├── QUICKSTART.md    # Usage examples
-└── README.md        # This file
+If you prefer installing dependencies directly:
+
+```bash
+# Clone the repository
+git clone https://github.com/radheyashetty/nifty50-prediction-system.git
+cd nifty50-prediction-system
+
+# Create and activate virtual environment
+python -m venv venv
+# Windows:
+venv\Scripts\activate
+# macOS/Linux:
+source venv/bin/activate
+
+# Install requirements
+pip install -r requirements.txt
+
+# Run the app
+uvicorn frontend.web_app:app --host 0.0.0.0 --port 8501 --reload
 ```
 
 ---
 
-## 💻 Usage Examples
+## 💻 Python API Usage
 
-### 1. Get Stock Prediction via Python
+You can also use the backend pipeline directly in Python scripts or Jupyter notebooks:
 
 ```python
 from backend.predictions import PredictionService
+from backend.screener import StockScreener
 
-service = PredictionService()
-result = service.predict_stock('RELIANCE.NS')
+# Initialize service
+service = PredictionService(lookback_days=365)
 
-# Access prediction
-decision = result['predictions']['decision']  # 'BULLISH' or 'BEARISH'
-confidence = result['predictions']['confidence']  # 0.0-1.0
+# Predict single stock
+result = service.predict_stock("RELIANCE.NS", analysis_mode="cache")
+print(f"Signal: {result['signal']} ({result['confidence']*100:.1f}% confidence)")
+print(f"Latest Price: ₹{result['latest_price']}")
+print(f"Top Indicator Driver: {result['top_features'][0]['name']}")
 
-# Get technical indicators
-rsi = result['technical_indicators']['rsi_14']
-macd = result['technical_indicators']['macd']
-
-# Get backtesting results
-backtest = result['backtest_results']
-print(f"Return: {backtest['ma_strategy']['return']:.2f}%")
-print(f"Sharpe: {backtest['ma_strategy']['sharpe_ratio']:.2f}")
-```
-
-### 2. Web Dashboard
-
-1. Navigate to http://localhost:8501
-2. Select a stock from the NIFTY 50 list
-3. Click **Analyze**
-4. View predictions, charts, and metrics
-
-### 3. Portfolio Analysis
-
-```python
-tickers = ['RELIANCE.NS', 'TCS.NS', 'INFY.NS', 'HDFC.NS']
-portfolio = service.analyze_portfolio(tickers)
-
-optimal = portfolio['optimizations']['max_sharpe']
-print(f"Expected Return: {optimal['return']:.2f}%")
+# Run screener
+screener = StockScreener(service)
+screener_results = screener.run_screener(min_confidence=0.60)
+print(f"Found {len(screener_results['bullish'])} high-conviction bullish stocks")
 ```
 
 ---
 
-## 🔧 Configuration
+## 📁 Repository Structure
 
-Create a `.env` file for custom settings (optional):
+```
+├── backend/                       # Quantitative ML pipeline
+│   ├── data_ingestion.py         # Multi-format data loader & Yahoo Finance fetcher
+│   ├── feature_engineering.py    # 20+ technical indicators (RSI, MACD, BB, ATR, ADX)
+│   ├── models.py                 # XGBoost and Random Forest model wrappers
+│   ├── explainability.py         # TreeSHAP & feature attribution
+│   ├── backtesting.py            # Quantitative backtesting engine
+│   ├── portfolio_optimization.py # Modern Portfolio Theory & Sharpe optimization
+│   ├── regime_detection.py       # Market regime & volatility regime analysis
+│   ├── predictions.py            # Main prediction orchestrator
+│   ├── screener.py               # NIFTY 50 multi-stock screening engine
+│   ├── sector_analysis.py        # Sector breadth & rotation analytics
+│   └── utils.py                  # Ticker mappings, helpers & utilities
+│
+├── frontend/                      # Web user interface
+│   ├── web_app.py                # FastAPI web service & REST endpoints
+│   ├── templates/
+│   │   └── index.html            # Responsive dark-theme dashboard
+│   └── static/
+│       ├── css/styles.css        # Custom UI styling & components
+│       ├── js/app.js             # Reactive charting & API client
+│       └── favicon.svg           # Application icon
+│
+├── data/
+│   └── external_nifty50/         # Pre-downloaded constituent stock datasets
+│
+├── docs/
+│   └── screenshots/              # High-resolution UI showcase images
+│
+├── models/
+│   └── trained_models/           # Pre-trained XGBoost models and scalers
+│
+├── scripts/
+│   └── capture_screenshots.py    # Headless Playwright UI capture tool
+│
+├── tests/                         # Test suite
+│   ├── test_api.py               # REST API endpoint tests
+│   ├── test_integration.py       # End-to-end integration workflows
+│   ├── test_nse_cleaning.py      # NSE data sanitization & date parsing tests
+│   └── test_utils.py             # Utility & normalization unit tests
+│
+├── ARCHITECTURE.md                # Detailed pipeline & architectural design
+├── INSTALL.md                     # Complete cross-platform installation guide
+├── QUICKSTART.md                  # Quick usage and API guide
+├── PROJECT_DEEP_DIVE.md           # Theoretical & algorithmic deep dive
+├── requirements.txt               # Dependencies
+├── run.bat                        # Windows launcher
+├── run.sh                         # Linux/macOS launcher
+└── README.md                      # Project documentation
+```
+
+---
+
+## 🧪 Testing
+
+The repository includes a comprehensive test suite covering data parsing, feature normalization, model inference, screener thresholds, and FastAPI endpoints:
 
 ```bash
-ML_USE_GPU=auto           # auto, 1/true, 0/false
-ML_RANDOM_SEED=42
-DATA_LOOKBACK_DAYS=365
-API_PORT=8501
+pytest -v
+```
+
+```
+tests/test_api.py ........                                       [ 32%]
+tests/test_integration.py .........                              [ 68%]
+tests/test_nse_cleaning.py ..                                    [ 76%]
+tests/test_utils.py ......                                       [100%]
+
+========================= 25 passed in 29.95s =========================
 ```
 
 ---
 
-## 📦 Dependencies
+## 📚 Documentation Links
 
-**Production (24 packages):**
-- Data: pandas, numpy, scipy
-- Web: FastAPI, Uvicorn
-- ML: scikit-learn, XGBoost, SHAP
-- Fetching: yfinance, requests
-
-Installation handled automatically by `run.bat` or `run.sh`.
-
----
-
-## 🧪 Running Tests
-
-```bash
-pip install -r requirements-dev.txt
-pytest
-```
-
----
-
-## 🚨 Troubleshooting
-
-| Issue | Solution |
-|-------|----------|
-| "Python not found" | Install Python 3.9+ and add to PATH |
-| "Port 8501 in use" | Use different port: `--port 8502` |
-| "ModuleNotFoundError" | Activate virtual environment |
-
-See [INSTALL.md](INSTALL.md) for detailed help.
-
----
-
-## 📚 Documentation
-
-- **[INSTALL.md](INSTALL.md)** - Complete installation guide
-- **[QUICKSTART.md](QUICKSTART.md)** - Code examples
-- **[DISTRIBUTION.md](DISTRIBUTION.md)** - Sharing & deployment
-- **[ARCHITECTURE.md](ARCHITECTURE.md)** - System design
+- **[QUICKSTART.md](QUICKSTART.md)**: Usage examples and guide
+- **[INSTALL.md](INSTALL.md)**: Full platform-specific setup
+- **[ARCHITECTURE.md](ARCHITECTURE.md)**: Architectural diagram and design decisions
+- **[PROJECT_DEEP_DIVE.md](PROJECT_DEEP_DIVE.md)**: Theoretical & quantitative deep dive
 
 ---
 
 ## ⚠️ Disclaimer
 
-This system is for **educational and research purposes only**. It should not be used as the sole basis for investment decisions. Always consult with financial advisors before trading.
+This application is strictly for **educational and research purposes**. It is not financial advice. Machine learning models predict statistical patterns and cannot guarantee future market returns. Always perform your own due diligence before trading.
 
 ---
 
 ## 📄 License
 
-See [LICENSE](LICENSE)
-
----
-
-
----
-
-**Ready to analyze NIFTY 50 stocks? Start with `./run.bat` (Windows) or `./run.sh` (Mac/Linux)! 🚀**
-
+Distributed under the [MIT License](LICENSE).
