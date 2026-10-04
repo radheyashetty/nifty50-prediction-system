@@ -73,7 +73,12 @@ class StockScreener:
                 ),
                 "latest_price": float(result.get("latest_price", 0.0) or 0.0),
                 "return_5d": float(indicators.get("return_5d", 0.0) or 0.0),
-                "volatility_30d": float(regime_obj.get("volatility", 0.0) or 0.0),
+                "volatility_30d": float(
+                    regime_obj.get("volatility")
+                    or (result.get("regime_analysis") or {}).get("volatility")
+                    or ((result.get("risk_metrics") or {}).get("volatility_30d", 0.0) / 100.0)
+                    or 0.0
+                ),
             }
 
             row["score"] = self._compute_score(row)

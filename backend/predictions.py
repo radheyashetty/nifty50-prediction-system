@@ -613,6 +613,7 @@ class PredictionService:
             "regime": {
                 "name": current_regime,
                 "volatility_regime": current_vol_regime,
+                "volatility": float(vol_regimes["current_volatility"]),
                 "hmm_regime": current_regime,
                 "regime_index": 0,
                 "characteristics": {},
