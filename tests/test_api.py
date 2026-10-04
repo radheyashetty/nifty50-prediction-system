@@ -1,4 +1,4 @@
-import pytest
+﻿import pytest
 from fastapi.testclient import TestClient
 from frontend.web_app import app
 
@@ -89,19 +89,6 @@ class TestHealthEndpoint:
         assert "stocks" in data
         assert "by_sector" in data
         assert data["total_count"] > 0
-
-
-class TestPortfolioEndpoint:
-    def test_portfolio_optimization(self, client):
-        response = client.post(
-            "/api/portfolio",
-            json={"tickers": ["RELIANCE.NS", "TCS.NS"]},
-        )
-        assert response.status_code == 200
-        data = response.json()
-        assert "optimizations" in data
-        assert "max_sharpe" in data["optimizations"]
-        assert "min_volatility" in data["optimizations"]
 
 
 if __name__ == "__main__":

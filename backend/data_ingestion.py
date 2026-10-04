@@ -933,30 +933,6 @@ class DataIngestion:
             logger.exception("Error fetching %s", ticker)
             return None
 
-    def fetch_nifty_index(self) -> Optional[pd.DataFrame]:
-        """Fetch NIFTY 50 index data"""
-        try:
-            logger.info("Fetching NIFTY 50 index...")
-            data = yf.download(
-                "^NSEI",  # NIFTY 50 ticker
-                start=self.start_date,
-                end=self.end_date,
-                progress=False,
-                auto_adjust=False,
-                threads=False,
-            )
-            if data is None or data.empty:
-                logger.warning("No NIFTY 50 index data returned")
-                return None
-            data.columns = [col.lower() for col in data.columns]
-            data = data.reset_index()
-            if not self._is_valid_ohlcv(data):
-                logger.warning("NIFTY 50 index data missing OHLCV columns")
-                return None
-            return data
-        except Exception:
-            logger.exception("Error fetching NIFTY 50 index")
-            return None
 
     def generate_synthetic_sentiment(self, price_data: pd.DataFrame) -> np.ndarray:
         """
@@ -1139,20 +1115,6 @@ class DataIngestion:
                 "data": None,
             }
 
-    def fetch_multiple_stocks(
-        self, tickers: Optional[List[str]] = None
-    ) -> Dict[str, pd.DataFrame]:
-        """Fetch data for multiple stocks"""
-        if tickers is None:
-            tickers = list(NIFTY50_STOCKS.keys())[:10]  # First 10 for demo
-
-        data_dict = {}
-        for ticker in tickers:
-            data = self.process_stock_data(ticker)
-            if data is not None:
-                data_dict[ticker] = data
-
-        return data_dict
 
     def get_all_available_tickers(self) -> List[str]:
         """Return NIFTY-focused ticker universe for UI and screening."""
@@ -1330,25 +1292,3 @@ class DataIngestion:
             if len(missing) >= max(1, int(limit)):
                 break
         return missing
-
-
-def main():
-    """Quick test of data ingestion"""
-    ingestion = DataIngestion(lookback_days=365)
-
-    # Fetch data for a few stocks
-    tickers = ["RELIANCE.NS", "TCS.NS", "INFY.NS"]
-    data_dict = {}
-
-    for ticker in tickers:
-        data = ingestion.process_stock_data(ticker)
-        if data is not None:
-            data_dict[ticker] = data
-            print(f"\n{ticker} data shape: {data.shape}")
-            print(data.head())
-
-    print("\n✓ Data ingestion successful!")
-
-
-if __name__ == "__main__":
-    main()

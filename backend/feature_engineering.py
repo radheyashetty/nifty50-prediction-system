@@ -438,33 +438,3 @@ class FeatureEngineer:
                 "volume_lag_20",
             ],
         }
-
-
-def main():
-    """Test feature engineering"""
-    from data_ingestion import DataIngestion
-
-    # Fetch data
-    ingestion = DataIngestion(lookback_days=365)
-    data = ingestion.process_stock_data("RELIANCE.NS")
-
-    if data is not None:
-        # Create features
-        engineer = FeatureEngineer()
-        features = engineer.create_features(data)
-
-        if features is None:
-            print("Feature generation failed due to missing required columns.")
-            return
-
-        print(f"Original data shape: {data.shape}")
-        print(f"Features data shape: {features.shape}")
-        print(f"\nFeature columns: {features.columns.tolist()}")
-        print(f"\nFirst few rows:\n{features.head()}")
-
-        # Show feature categories
-        print(f"\nFeature categories: {engineer.get_feature_list().keys()}")
-
-
-if __name__ == "__main__":
-    main()

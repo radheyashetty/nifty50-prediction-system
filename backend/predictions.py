@@ -1,4 +1,4 @@
-"""
+﻿"""
 Main Prediction Service
 Orchestrates all components for end-to-end prediction pipeline
 """
@@ -773,7 +773,7 @@ class PredictionService:
                 if mode == "after_training"
                 else "loaded_trained_artifacts"
             ),
-            "model_used": "ensemble(xgb+rf+lstm)",
+            "model_used": "ensemble(xgb+rf)",
             "data_points_used": int(len(raw_data)),
             "training_samples": int(len(X_train)),
             "test_samples": int(len(X_test)),
@@ -909,8 +909,9 @@ class PredictionService:
 
         if retrain:
             mode = "after_training"
+        if screening_mode:
+            requested_mode = "screening"
 
-        # Step 1: Fetch and preprocess data
         print("\n[1/6] Fetching stock data...")
         try:
             raw_data = self.data_ingestion.process_stock_data(ticker)
@@ -920,7 +921,10 @@ class PredictionService:
         if raw_data is None or raw_data.empty:
             return {"error": f"Unable to fetch data for {ticker}"}
 
+        # screening results skip SHAP + backtests, so keep them out of the dashboard cache
         cache_key = self._make_cache_key(ticker, raw_data)
+        if screening_mode:
+            cache_key += "|screen"
         if mode == "cache":
             with self._cache_lock:
                 cached = self._result_cache.get(cache_key)
@@ -995,24 +999,3 @@ class PredictionService:
             return "Moderate Risk"
         else:
             return "High Risk"
-
-
-def main():
-    """Test prediction service"""
-    service = PredictionService()
-
-    # Single stock prediction
-    print("\nSingle Stock Prediction:")
-    result = service.predict_stock("RELIANCE.NS")
-
-    if "error" not in result:
-        print(f"\nPrediction: {result['predictions']['decision']}")
-        print(f"Confidence: {result['predictions']['confidence']:.1%}")
-        print(f"\nRisk Level: {result['risk_metrics']['risk_level']}")
-        print(f"Regime: {result['regime_analysis']['current_regime']}")
-
-    print("\n✓ Prediction service test complete!")
-
-
-if __name__ == "__main__":
-    main()

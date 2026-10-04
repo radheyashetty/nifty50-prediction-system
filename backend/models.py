@@ -141,7 +141,7 @@ class XGBoostPredictor:
             )
         except Exception as exc:
             if "fit or load_model" in str(exc):
-                logger.error(f"Failed to extract feature importance: Model not fitted.")
+                logger.error("Failed to extract feature importance: Model not fitted.")
             else:
                 logger.error(f"Failed to extract feature importance: {exc}")
             return {}
@@ -204,14 +204,12 @@ class EnsemblePredictor:
         self.xgb = None
         self.rf = None
 
-    def fit(self, xgb_model, rf_model=None, lstm_model=None):
+    def fit(self, xgb_model, rf_model=None):
         self.xgb = xgb_model
         self.rf = rf_model
         return self
 
-    def get_individual_probs(
-        self, X_test: np.ndarray, X_seq: np.ndarray | None = None
-    ) -> dict[str, np.ndarray | None]:
+    def get_individual_probs(self, X_test: np.ndarray) -> dict[str, np.ndarray | None]:
         probs: dict[str, np.ndarray | None] = {
             "xgb_prob": None,
             "rf_prob": None,
@@ -225,10 +223,8 @@ class EnsemblePredictor:
 
         return probs
 
-    def predict_proba(
-        self, X_test: np.ndarray, X_seq: np.ndarray | None = None
-    ) -> np.ndarray:
-        probs = self.get_individual_probs(X_test, X_seq)
+    def predict_proba(self, X_test: np.ndarray) -> np.ndarray:
+        probs = self.get_individual_probs(X_test)
         valid = [prob for prob in probs.values() if prob is not None and len(prob) > 0]
         if not valid:
             return np.array([])

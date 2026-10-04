@@ -90,16 +90,6 @@ class BacktestEngine:
 
         return signals, positions
 
-    def ml_signal_strategy(
-        self, prices: pd.Series, predictions: np.ndarray, threshold: float = 0.55
-    ) -> Tuple[pd.Series, pd.Series]:
-        """Generate strategy signals from model probabilities."""
-        signals = pd.Series(0, index=prices.index, dtype=float)
-        n = min(len(signals), len(predictions))
-        recent_pred = np.asarray(predictions)[-n:]
-        signals.iloc[-n:] = np.where(recent_pred > threshold, 1, 0)
-        positions = signals.diff().fillna(0)
-        return signals, positions
 
     def backtest_strategy(
         self, prices: pd.Series, signals: pd.Series, strategy_name: str = "Strategy"
@@ -236,88 +226,3 @@ class BacktestEngine:
         if max_drawdown_pct == 0:
             return 0.0
         return float(annualized_return_pct / abs(max_drawdown_pct))
-
-    def compare_strategies(
-        self, prices: pd.Series, strategies_dict: Dict[str, pd.Series]
-    ) -> pd.DataFrame:
-        """
-        Compare multiple strategies
-
-        Args:
-            prices: Close prices
-            strategies_dict: Dict of strategy_name -> signals
-
-        Returns:
-            DataFrame comparing all strategies
-        """
-        comparison_data = []
-
-        for strategy_name, signals in strategies_dict.items():
-            results = self.backtest_strategy(prices, signals, strategy_name)
-            comparison_data.append(
-                {
-                    "Strategy": strategy_name,
-                    "Return %": results["total_return"],
-                    "Annualized Return %": results["annualized_return_pct"],
-                    "vs Buy-Hold %": results["excess_return"],
-                    "Sharpe Ratio": results["sharpe_ratio"],
-                    "Max Drawdown %": results["max_drawdown"],
-                    "Win Rate %": results["win_rate"],
-                    "Num Trades": results["num_trades"],
-                }
-            )
-
-        return pd.DataFrame(comparison_data)
-
-
-def main():
-    """Test backtesting engine"""
-    from data_ingestion import DataIngestion
-    from feature_engineering import FeatureEngineer
-
-    print("Loading data...")
-    ingestion = DataIngestion(lookback_days=365)
-    raw_data = ingestion.process_stock_data("RELIANCE.NS")
-    if raw_data is None:
-        print("No data returned from ingestion.")
-        return
-
-    print("Creating features...")
-    engineer = FeatureEngineer()
-    data = engineer.create_features(raw_data)
-    if data is None or data.empty:
-        print("Feature generation failed; cannot run backtesting demo.")
-        return
-
-    prices = data["close"]
-
-    # Test different strategies
-    backtest = BacktestEngine(initial_capital=100000)
-
-    # Strategy 1: Simple MA
-    print("\n=== Simple Moving Average Strategy ===")
-    signals_ma, _ = backtest.simple_ma_strategy(prices, short_window=20, long_window=50)
-    results_ma = backtest.backtest_strategy(prices, signals_ma, "MA Crossover")
-    print(f"Return: {results_ma['total_return']:.2f}%")
-    print(f"Sharpe Ratio: {results_ma['sharpe_ratio']:.2f}")
-    print(f"Max Drawdown: {results_ma['max_drawdown']:.2f}%")
-    print(f"Trades: {results_ma['num_trades']}")
-
-    # Strategy 2: RSI
-    print("\n=== RSI Strategy ===")
-    rsi_values = engineer.calculate_rsi(prices, window=14)
-    signals_rsi, _ = backtest.rsi_strategy(prices, np.asarray(rsi_values))
-    results_rsi = backtest.backtest_strategy(prices, signals_rsi, "RSI")
-    print(f"Return: {results_rsi['total_return']:.2f}%")
-    print(f"Sharpe Ratio: {results_rsi['sharpe_ratio']:.2f}")
-    print(f"Max Drawdown: {results_rsi['max_drawdown']:.2f}%")
-    print(f"Trades: {results_rsi['num_trades']}")
-
-    print(f"\n=== Buy-and-Hold ===")
-    print(f"Return: {results_ma['buy_hold_return']:.2f}%")
-
-    print("\n✓ Backtesting complete!")
-
-
-if __name__ == "__main__":
-    main()
